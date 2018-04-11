@@ -876,45 +876,45 @@ class TestMaterializedViews(Tester):
             ['TX', 'user1', 1968, 'f']
         )
 
-    def test_rename_column_atomicity(self):
-        """
-        Test that column renaming is atomically done between a table and its materialized views
-        @jira_ticket CASSANDRA-12952
-        """
-        session = self.prepare(nodes=1, user_table=True, install_byteman=True)
-        node = self.cluster.nodelist()[0]
+    # def test_rename_column_atomicity(self):
+        # """
+        # Test that column renaming is atomically done between a table and its materialized views
+        # @jira_ticket CASSANDRA-12952
+        # """
+        # session = self.prepare(nodes=1, user_table=True, install_byteman=True)
+        # node = self.cluster.nodelist()[0]
 
-        self._insert_data(session)
+        # self._insert_data(session)
 
-        assert_one(
-            session,
-            "SELECT * FROM users_by_state WHERE state = 'TX' AND username = 'user1'",
-            ['TX', 'user1', 1968, 'f', 'ch@ngem3a', None]
-        )
+        # assert_one(
+            # session,
+            # "SELECT * FROM users_by_state WHERE state = 'TX' AND username = 'user1'",
+            # ['TX', 'user1', 1968, 'f', 'ch@ngem3a', None]
+        # )
 
-        # Rename a column with an injected byteman rule to kill the node after the first schema update
-        self.fixture_dtest_setup.allow_log_errors = True
-        script_version = '4x' if self.cluster.version() >= '4' else '3x'
-        node.byteman_submit(['./byteman/merge_schema_failure_{}.btm'.format(script_version)])
-        with pytest.raises(NoHostAvailable):
-            session.execute("ALTER TABLE users RENAME username TO user")
+        # # Rename a column with an injected byteman rule to kill the node after the first schema update
+        # self.fixture_dtest_setup.allow_log_errors = True
+        # script_version = '4x' if self.cluster.version() >= '4' else '3x'
+        # node.byteman_submit(['./byteman/merge_schema_failure_{}.btm'.format(script_version)])
+        # with pytest.raises(NoHostAvailable):
+            # session.execute("ALTER TABLE users RENAME username TO user")
 
-        logger.debug('Restarting node')
-        node.stop()
-        node.start(wait_for_binary_proto=True)
-        session = self.patient_cql_connection(node, consistency_level=ConsistencyLevel.ONE)
+        # logger.debug('Restarting node')
+        # node.stop()
+        # node.start(wait_for_binary_proto=True)
+        # session = self.patient_cql_connection(node, consistency_level=ConsistencyLevel.ONE)
 
-        # Both the table and its view should have the new schema after restart
-        assert_one(
-            session,
-            "SELECT * FROM ks.users WHERE state = 'TX' AND user = 'user1' ALLOW FILTERING",
-            ['user1', 1968, 'f', 'ch@ngem3a', None, 'TX']
-        )
-        assert_one(
-            session,
-            "SELECT * FROM ks.users_by_state WHERE state = 'TX' AND user = 'user1'",
-            ['TX', 'user1', 1968, 'f', 'ch@ngem3a', None]
-        )
+        # # Both the table and its view should have the new schema after restart
+        # assert_one(
+            # session,
+            # "SELECT * FROM ks.users WHERE state = 'TX' AND user = 'user1' ALLOW FILTERING",
+            # ['user1', 1968, 'f', 'ch@ngem3a', None, 'TX']
+        # )
+        # assert_one(
+            # session,
+            # "SELECT * FROM ks.users_by_state WHERE state = 'TX' AND user = 'user1'",
+            # ['TX', 'user1', 1968, 'f', 'ch@ngem3a', None]
+        # )
 
     def test_lwt(self):
         """Test that lightweight transaction behave properly with a materialized view"""
